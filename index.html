@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>TsakasCuts</title>
+<style>
+  :root { color-scheme:dark; --bg:#0f1923; --panel:#16222e; --line:#2a3a48; --red:#ff4655; --txt:#ece8e1; --dim:#a8b3bd; }
+  * { box-sizing: border-box; }
+  body { margin:0; height:100vh; display:grid; grid-template-rows:auto 1fr auto 270px; background:var(--bg); color:var(--txt);
+         font:14px Bahnschrift, 'Segoe UI', sans-serif; user-select:none; overflow:hidden; }
+  header, #tools { display:flex; gap:8px; align-items:center; padding:10px 14px; }
+  header { border-bottom:1px solid var(--line); }
+  #tools { border-block:1px solid var(--line); padding-block:8px; }
+  .logo { font-weight:700; letter-spacing:.2em; color:var(--red); margin-right:14px; font-size:18px; }
+  button, select, input { font:inherit; color:var(--txt); background:var(--panel); border:1px solid var(--line); padding:6px 10px; border-radius:2px; }
+  button { cursor:pointer; } button:hover:not(:disabled) { border-color:var(--red); }
+  button:disabled, fieldset:disabled { opacity:.45; }
+  .primary { background:var(--red); border-color:var(--red); color:var(--bg); font-weight:600; letter-spacing:.05em; }
+  .spacer { flex:1; }
+  #mid { display:grid; grid-template-columns:1fr 320px; min-height:0; }
+  #stageWrap { container-type:size; display:grid; place-items:center; padding:12px; min-height:0; }
+  #stage { position:relative; background:#000; overflow:hidden; aspect-ratio:16/9; width:min(100cqw, 100cqh * 16 / 9); }
+  #stage.tiktok { aspect-ratio:9/16; width:min(100cqw, 100cqh * 9 / 16); }
+  #stage video { width:100%; height:100%; object-fit:cover; display:block; }
+  #overlay { position:absolute; inset:0; opacity:0; pointer-events:none; }
+  aside { border-left:1px solid var(--line); padding:4px 14px 14px; overflow:auto; }
+  aside h3 { margin:16px 0 8px; font-size:11px; letter-spacing:.15em; color:var(--dim); text-transform:uppercase; }
+  fieldset { border:0; padding:0; margin:0; }
+  .row { display:flex; gap:6px; align-items:center; margin-bottom:7px; }
+  .row > span:first-child { width:76px; flex:none; color:var(--dim); }
+  input[type=range] { flex:1; min-width:0; padding:0; background:none; border:0; accent-color:var(--red); }
+  .val { min-width:60px; text-align:center; font-variant-numeric:tabular-nums; }
+  .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:8px; }
+  .hint { color:var(--dim); font-size:12px; line-height:1.6; margin:4px 0; }
+  kbd { background:var(--panel); border:1px solid var(--line); border-radius:2px; padding:0 5px; font:inherit; }
+  #time { font-variant-numeric:tabular-nums; color:var(--dim); margin-left:8px; }
+  #status { color:var(--dim); }
+  #scroll { overflow-x:auto; overflow-y:hidden; }
+  #tl { position:relative; height:100%; min-width:100%; }
+  #ruler { height:22px; cursor:ew-resize; background-image:linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size:var(--z) 100%; }
+  .track { position:relative; height:96px; margin:10px 0; }
+  #mtrack { height:44px; }
+  .clip, .mus { position:absolute; top:0; height:100%; padding:6px 8px; border-radius:3px; overflow:hidden; white-space:nowrap;
+                font-size:12px; border:2px solid transparent; display:flex; flex-direction:column; gap:4px; }
+  .clip { background:#1d3547; cursor:grab; }
+  .clip:nth-child(even) { background:#22404f; }
+  .clip.sel { border-color:var(--red); }
+  .clip small, .mus small { color:var(--dim); }
+  .clip b, .clip small { position:relative; text-shadow:0 1px 3px #000, 0 0 2px #000; }
+  .clip small { color:var(--txt); }
+  /* trim handles on both ends of a clip */
+  .h { position:absolute; top:0; bottom:0; width:10px; z-index:2; cursor:ew-resize; background:var(--txt); opacity:0; }
+  .h.l { left:0; border-radius:2px 0 0 2px; } .h.r { right:0; border-radius:0 2px 2px 0; }
+  .clip:hover .h { opacity:.5; } .clip.sel .h { opacity:.9; } .h:hover { opacity:1 !important; background:var(--red); }
+  .clip canvas { position:absolute; left:0; top:0; height:100%; opacity:.55; pointer-events:none; }
+  .mus { background:#35284a; flex-direction:row; align-items:center; gap:10px; }
+  .beat { position:absolute; top:22px; bottom:0; width:2px; background:#ffd166; opacity:.75; pointer-events:none; }
+  #playhead { position:absolute; top:0; bottom:0; width:2px; background:var(--red); pointer-events:none; }
+  progress { width:140px; accent-color:var(--red); }
+  dialog { background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:4px; padding:0; width:min(480px, 90vw); }
+  dialog:focus { outline:none; }
+  dialog::backdrop { background:rgb(0 0 0 / .6); }
+  .dlgHead { display:flex; justify-content:space-between; align-items:center; padding:10px 10px 10px 16px; border-bottom:1px solid var(--line); }
+  .dlgHead b { letter-spacing:.1em; text-transform:uppercase; font-size:13px; }
+  dialog table { border-collapse:collapse; margin:8px 16px 16px; width:calc(100% - 32px); }
+  dialog td { padding:6px 0; border-bottom:1px solid var(--line); }
+  dialog tr:last-child td { border-bottom:0; }
+  dialog td:first-child { width:170px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">TSAKASCUTS</span>
+  <button id="openProject" title="Ctrl+O">Open</button>
+  <button id="saveProject" title="Ctrl+S · Ctrl+Shift+S = Save As">Save</button>
+  <button id="importClips">+ Import Clips</button>
+  <button id="addMusic">♪ Add Music</button>
+  <span class="spacer"></span>
+  <button id="updates" title="Check for updates">⟳ Updates <span id="version" style="color:var(--dim)"></span></button>
+  <select id="format"><option value="youtube">YouTube 16:9</option><option value="tiktok">TikTok 9:16</option></select>
+  <select id="res"><option value="1080p">1080p</option><option value="2k">2K</option><option value="4k">4K</option></select>
+  <select id="fps"><option value="60">60 fps</option><option value="30">30 fps</option></select>
+  <progress id="prog" max="1" hidden></progress>
+  <span id="status"></span>
+  <button id="export" class="primary">EXPORT</button>
+</header>
+
+<div id="mid">
+  <div id="stageWrap"><div id="stage"><video id="video"></video><div id="overlay"></div></div></div>
+  <aside>
+    <h3>Selected clip</h3>
+    <div id="clipName" class="name"></div>
+    <fieldset id="clipBox">
+      <div class="row"><span>Volume</span><input id="clipVol" type="range" min="-60" max="20" step="1"><span id="clipDb" class="val"></span><button id="mute">Mute</button></div>
+      <div class="row"><span>Speed</span><select id="speed">
+        <option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="0.75">0.75x</option>
+        <option value="1">1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></div>
+      <div class="row"><span>Transition</span><select id="trans">
+        <option value="none">None</option><option value="flash">⚡ White flash</option><option value="fade">◐ Fade</option></select></div>
+    </fieldset>
+
+    <h3>All clips</h3>
+    <div class="row"><span>Game audio</span><input id="gameVol" type="range" min="-60" max="20" step="1"><span id="gameDb" class="val"></span></div>
+
+    <h3>Music</h3>
+    <div id="musicName" class="name"></div>
+    <fieldset id="musicBox">
+      <div class="row"><span>Volume</span><input id="musicVol" type="range" min="-60" max="20" step="1"><span id="musicDb" class="val"></span></div>
+      <div class="row"><span>Song start</span><input id="offset" type="number" min="0" step="0.1" style="width:80px"> s</div>
+      <label class="row"><span>Fade</span><input id="mfade" type="checkbox"> in / out</label>
+    </fieldset>
+
+    <h3>Beats</h3>
+    <div class="row"><span id="beatCount"></span><button id="snap">Snap cuts</button><button id="clearBeats">Clear</button></div>
+    <p class="hint">Play and tap <kbd>B</kbd> on every beat, then Snap cuts to end each clip on a beat.</p>
+
+  </aside>
+</div>
+
+<div id="tools">
+  <button id="play" style="width:46px">▶</button>
+  <button id="splitLeft" title="Q">⇤ Split Left</button>
+  <button id="split" title="S">✂ Split</button>
+  <button id="splitRight" title="W">Split Right ⇥</button>
+  <button id="del" title="Delete">🗑 Delete</button>
+  <button id="undo" title="Ctrl+Z">↶ Undo</button>
+  <span id="time"></span>
+  <span class="spacer"></span>
+  <button id="keysBtn">⌨ Shortcuts</button>
+  Zoom <input id="zoom" type="range" min="5" max="600" value="60" style="flex:none; width:160px">
+</div>
+
+<div id="scroll">
+  <div id="tl">
+    <div id="ruler"></div>
+    <div id="vtrack" class="track"></div>
+    <div id="mtrack" class="track"></div>
+    <div id="beats"></div>
+    <div id="playhead"></div>
+  </div>
+</div>
+
+<dialog id="keys" tabindex="-1">
+  <div class="dlgHead"><b>Keyboard shortcuts</b><button id="keysClose" aria-label="Close">✕</button></div>
+  <table>
+    <tr><td><kbd>Space</kbd></td><td>Play / pause</td></tr>
+    <tr><td><kbd>Q</kbd></td><td>Split left (delete before playhead)</td></tr>
+    <tr><td><kbd>S</kbd></td><td>Split at playhead</td></tr>
+    <tr><td><kbd>W</kbd></td><td>Split right (delete after playhead)</td></tr>
+    <tr><td><kbd>B</kbd></td><td>Mark a beat</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>Delete selected clip</td></tr>
+    <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Undo</td></tr>
+    <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save project</td></tr>
+    <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></td><td>Save project as</td></tr>
+    <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd></td><td>Open project</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Step one frame</td></tr>
+    <tr><td><kbd>=</kbd> / <kbd>−</kbd></td><td>Zoom timeline in / out</td></tr>
+    <tr><td><kbd>Ctrl</kbd> + mouse wheel</td><td>Zoom timeline at the mouse</td></tr>
+    <tr><td>Mouse wheel</td><td>Scroll timeline</td></tr>
+    <tr><td>Drag clip edge</td><td>Trim clip start / end</td></tr>
+    <tr><td>Drag clip</td><td>Reorder clips</td></tr>
+    <tr><td>Drop files</td><td>Import videos / music</td></tr>
+  </table>
+</dialog>
+
+<script src="renderer.js"></script>
+</body>
+</html>
